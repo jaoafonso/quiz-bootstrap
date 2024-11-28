@@ -6,21 +6,9 @@ const perguntas = [
         respostaCorreta: "JavaScript"
     },
     {
-        tipo: "checkbox",
-        enunciado: "Quais dessas são linguagens de programação orientadas a objetos?",
-        opcoes: ["Java", "C++", "HTML", "Python"],
-        respostaCorreta: ["Java", "C++", "Python"]
-    },
-    {
         tipo: "texto",
         enunciado: "Qual é o nome da linguagem que lembra uma cobra?",
         respostaCorreta: "Python"
-    },
-    {
-        tipo: "radio",
-        enunciado: "O que significa a sigla SQL?",
-        opcoes: ["Structured Query Language", "Standard Query Language", "Sequential Query Language", "Simple Query Language"],
-        respostaCorreta: "Structured Query Language"
     },
     {
         tipo: "checkbox",
@@ -36,14 +24,14 @@ const perguntas = [
     {
         tipo: "radio",
         enunciado: "Qual é o principal objetivo da programação orientada a objetos?",
-        opcoes: ["Manipulação de dados", "Reutilização de código", "Design de interfaces", "Criação de algoritmos"],
+        opcoes: ["Manipulação de dados", "Reutilização de código", "Dor de cabeça", "Criação de algoritmos"],
         respostaCorreta: "Reutilização de código"
     },
     {
         tipo: "checkbox",
         enunciado: "Quais dessas são estruturas de dados comumente usadas?",
-        opcoes: ["Lista", "Árvore", "Tabela Periódica", "Grafo"],
-        respostaCorreta: ["Lista", "Árvore", "Grafo"]
+        opcoes: ["Lista", "Árvore", "Tabela Periódica", "Elemento"],
+        respostaCorreta: ["Lista", "Árvore"]
     },
     {
         tipo: "texto",
@@ -51,16 +39,10 @@ const perguntas = [
         respostaCorreta: "git clone"
     },
     {
-        tipo: "radio",
-        enunciado: "Qual empresa criou a linguagem C?",
-        opcoes: ["Microsoft", "IBM", "Bell Labs", "Google"],
-        respostaCorreta: "Bell Labs"
-    },
-    {
         tipo: "checkbox",
         enunciado: "Quais dessas práticas fazem parte do desenvolvimento ágil?",
-        opcoes: ["Scrum", "Kanban", "Waterfall", "Extreme Programming (XP)"],
-        respostaCorreta: ["Scrum", "Kanban", "Extreme Programming (XP)"]
+        opcoes: ["Scrum", "Kanban", "Cascata", "Go Horse"],
+        respostaCorreta: ["Scrum", "Kanban"]
     },
     {
         tipo: "texto",
@@ -69,8 +51,8 @@ const perguntas = [
     }
 ];
 
+let respostas = [];
 let perguntaAtual = 0;
-let acertos = 0;
 
 function carregarPergunta() {
     const pergunta = perguntas[perguntaAtual];
@@ -81,58 +63,124 @@ function carregarPergunta() {
         .then(data => {
             document.getElementById('quizContainer').innerHTML = data;
             document.getElementById('enunciado').innerText = pergunta.enunciado;
-
-            if (pergunta.tipo !== "texto") {
-                pergunta.opcoes.forEach((opcao, index) => {
-                    document.getElementById(`option${index + 1}`).nextElementSibling.innerText = opcao;
-                });
-            }
+            carregarOpcoes(pergunta);
         });
 }
 
-function proximaPergunta() {
-    let possuiProximaPergunta = perguntaAtual < perguntas.length - 1;
-    corrigirPergunta();
-    if (possuiProximaPergunta) {
-        carregarPergunta();
-    } else {
-        carregarResultado(acertos);
+function carregarOpcoes(pergunta) {
+    if (pergunta.tipo !== "texto") {
+        const labels = document.querySelectorAll('.form-check-label');
+
+        pergunta.opcoes.forEach((opcao, index) => {
+            labels[index].innerText = opcao;
+        });
     }
 }
 
-function corrigirPergunta() {
-    if (acertouPergunta()) {
-        acertos++;
+function proximaPergunta() {
+    corrigirPerguntaAtual();
+    if (perguntaAtual < perguntas.length) {
+        carregarPergunta();
+    } else {
+        carregarResultado();
     }
+}
+
+function corrigirPerguntaAtual() {
+    const pergunta = perguntas[perguntaAtual];
+    const acertou = validarRespostaAtual();
+    respostas.push({
+        enunciado: pergunta.enunciado,
+        respostaUsuario: obterRespostaUsuario(pergunta),
+        correta: acertou,
+        respostaCorreta: pergunta.respostaCorreta
+    });
+
     perguntaAtual++;
 }
 
-function acertouPergunta() {
-    const pergunta = perguntas[perguntaAtual];
+function obterRespostaUsuario(pergunta) {
     if (pergunta.tipo === "radio") {
-        const resposta = document.querySelector(`input[type="radio"]:checked`).nextElementSibling.innerText;
-        return resposta === pergunta.respostaCorreta;
+        const respostaSelecionada = document.querySelector(`input[type="radio"]:checked`);
+        return respostaSelecionada.nextElementSibling.innerText;
     }
     if (pergunta.tipo === "checkbox") {
-        const respostas = Array.from(document.querySelectorAll(`input[type="checkbox"]:checked`)).map(input => input.nextElementSibling.innerText);
-        return pergunta.respostaCorreta.every(val => respostas.includes(val))
+        return Array.from(document.querySelectorAll(`input[type="checkbox"]:checked`))
+            .map(input => input.nextElementSibling.innerText);
     }
     if (pergunta.tipo === "texto") {
-        const respostaTexto = document.getElementById('answer').value;
-        return respostaTexto.toLowerCase() === pergunta.respostaCorreta.toLowerCase();
+        return document.getElementById('answer').value.trim();
     }
-    return false;
+    return null;
 }
 
-function carregarResultado(pontuacao) {
+function validarRespostaAtual() {
+    const pergunta = perguntas[perguntaAtual];
+
+    const validadores = {
+        radio: validarRespostaRadio,
+        checkbox: validarRespostaCheckbox,
+        texto: validarRespostaTexto,
+    };
+
+    return validadores[pergunta.tipo](pergunta);
+}
+
+function validarRespostaRadio(pergunta) {
+    return getRespostaRadio() === pergunta.respostaCorreta;
+}
+
+function validarRespostaCheckbox(pergunta) {
+    const respostasSelecionadas = getRespostasCheckbox();
+    const respostasCorretas = pergunta.respostaCorreta;
+
+    return (
+        respostasSelecionadas.length === respostasCorretas.length
+        && respostasCorretas.every(resposta => respostasSelecionadas.includes(resposta))
+    );
+}
+
+function validarRespostaTexto(pergunta) {
+    return getRespostaTexto().toLowerCase() === pergunta.respostaCorreta.toLowerCase();
+}
+
+function getRespostaRadio() {
+    return document.querySelector('input[type="radio"]:checked').nextElementSibling.innerText;
+}
+
+function getRespostasCheckbox() {
+    return Array.from(
+        document.querySelectorAll('input[type="checkbox"]:checked')
+    ).map(input => input.nextElementSibling.innerText);
+}
+
+function getRespostaTexto() {
+    return document.getElementById("answer").value.trim();
+}
+
+function carregarResultado() {
     fetch("elements/resultado.html")
         .then(response => response.text())
         .then(data => {
+            const tabelaBody = document.querySelector("#tabelaResultado tbody");
+            const pontuacao = respostas.filter(resultado => resultado.correta === true).length;
+
             document.getElementById('quizContainer').innerHTML = data;
             document.getElementById('pontuacao').innerText = `Sua pontuação: ${pontuacao}`;
-            document.getElementById('resultado').innerText = pontuacao === perguntas.length
-                ? "Parabéns! Você acertou todas as perguntas!" 
-                : "Tente novamente para melhorar sua pontuação.";;
+
+            respostas.forEach((resultado, index) => {
+                const linha = document.createElement("tr");
+
+                linha.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${resultado.enunciado}</td>
+                    <td>${Array.isArray(resultado.respostaUsuario) ? resultado.respostaUsuario.join(", ") : resultado.respostaUsuario}</td>
+                    <td>${Array.isArray(resultado.respostaCorreta) ? resultado.respostaCorreta.join(", ") : resultado.respostaCorreta}</td>
+                    <td>${resultado.correta ? `✅` : `❌`}</td>
+                `;
+
+                tabelaBody.appendChild(linha);
+            });
         });
 }
 
