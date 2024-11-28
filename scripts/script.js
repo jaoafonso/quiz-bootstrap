@@ -63,6 +63,10 @@ function carregarPergunta() {
         .then(data => {
             document.getElementById('quizContainer').innerHTML = data;
             document.getElementById('enunciado').innerText = pergunta.enunciado;
+            document.getElementById('quiz').addEventListener('submit', function(event) {
+                event.preventDefault();
+                proximaPergunta();
+            });
             carregarOpcoes(pergunta);
         });
 }
