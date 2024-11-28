@@ -91,7 +91,7 @@ function corrigirPerguntaAtual() {
     const acertou = validarRespostaAtual();
     respostas.push({
         enunciado: pergunta.enunciado,
-        respostaUsuario: obterRespostaUsuario(pergunta),
+        respostaUsuario: obterRespostaAtual(pergunta),
         correta: acertou,
         respostaCorreta: pergunta.respostaCorreta
     });
@@ -99,19 +99,13 @@ function corrigirPerguntaAtual() {
     perguntaAtual++;
 }
 
-function obterRespostaUsuario(pergunta) {
-    if (pergunta.tipo === "radio") {
-        const respostaSelecionada = document.querySelector(`input[type="radio"]:checked`);
-        return respostaSelecionada.nextElementSibling.innerText;
-    }
-    if (pergunta.tipo === "checkbox") {
-        return Array.from(document.querySelectorAll(`input[type="checkbox"]:checked`))
-            .map(input => input.nextElementSibling.innerText);
-    }
-    if (pergunta.tipo === "texto") {
-        return document.getElementById('answer').value.trim();
-    }
-    return null;
+function obterRespostaAtual(pergunta) {
+    const getters = {
+        radio: getRespostaRadio,
+        checkbox: getRespostasCheckbox,
+        texto: getRespostaTexto,
+    };
+    return getters[pergunta.tipo](pergunta);
 }
 
 function validarRespostaAtual() {
@@ -162,12 +156,11 @@ function carregarResultado() {
     fetch("elements/resultado.html")
         .then(response => response.text())
         .then(data => {
-            const tabelaBody = document.querySelector("#tabelaResultado tbody");
             const pontuacao = respostas.filter(resultado => resultado.correta === true).length;
-
             document.getElementById('quizContainer').innerHTML = data;
             document.getElementById('pontuacao').innerText = `Sua pontuação: ${pontuacao}`;
 
+            const tabelaBody = document.querySelector("#tabelaResultado tbody");
             respostas.forEach((resultado, index) => {
                 const linha = document.createElement("tr");
 
